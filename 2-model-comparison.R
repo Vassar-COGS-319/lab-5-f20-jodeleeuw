@@ -38,7 +38,7 @@ plot(y ~ x, data=simulated.data)
 simulated.data <- simulated.data %>%
   mutate(y.true = data.generating.process(x))
 
-points(y.true ~ x, data=data, col="red", type="l")
+points(y.true ~ x, data=simulated.data, col="red", type="l")
 
 # This fit looks pretty good, but that's because we're generating
 # the data from this exact model! 
@@ -53,15 +53,15 @@ points(y.true ~ x, data=data, col="red", type="l")
 # and 7-degree model.
 
 model.1.prediction <- function(params, x){
-  
+  return(params[1] + params[2]*x)
 }
 
 model.3.prediction <- function(params, x){
-  
+  return(params[1] + params[2]*x + params[3]*x^2 + params[4]*x^3)
 }
 
 model.7.prediction <- function(params, x){
-
+  return(params[1] + params[3]*x + params[3]*x^2 + params[4]*x^3 + params[5]*x^4 + params[6]*x^5 + params[7]*x^6 + params[8]*x^7)
 }
 
 
@@ -72,18 +72,33 @@ model.7.prediction <- function(params, x){
 # centered at the line predicted by the polynomial function. 
 
 model.1.discrepancy <- function(params, data){
+  log.likelihood <- data %>%
+    mutate(y.pred = model.1.prediction(params, x)) %>%
+    mutate(log.p = dnorm(y, mean=y.pred, sd=3, log = TRUE)) %>%
+    pull(log.p) %>%
+    sum()
   
-  
+  return(-log.likelihood)
 }
 
 model.3.discrepancy <- function(params, data){
+  log.likelihood <- data %>%
+    mutate(y.pred = model.3.prediction(params, x)) %>%
+    mutate(log.p = dnorm(y, mean=y.pred, sd=3, log = TRUE)) %>%
+    pull(log.p) %>%
+    sum()
   
-  
+  return(-log.likelihood)
 }
 
 model.7.discrepancy <- function(params, data){
+  log.likelihood <- data %>%
+    mutate(y.pred = model.7.prediction(params, x)) %>%
+    mutate(log.p = dnorm(y, mean=y.pred, sd=3, log = TRUE)) %>%
+    pull(log.p) %>%
+    sum()
   
-  
+  return(-log.likelihood)
 }
 
 
@@ -95,7 +110,7 @@ plot(y ~ x, data = simulated.data)
 
 # fill in the code to run the MLE
 
-model.1.result <- NA
+model.1.result <- optim(model.1.discrepancy, par=c(0,0), data=simulated.data)
 
 simulated.data <- simulated.data %>%
   mutate(y.pred.1 = model.1.prediction(model.1.result$par, x))
@@ -104,7 +119,7 @@ points(y.pred.1 ~ x, data=simulated.data, type="l", col="purple")
 
 
 
-model.3.result <- NA
+model.3.result <- optim(model.3.discrepancy, par=c(0,0,0,0), data=simulated.data, control = list(maxit=2000))
 
 simulated.data <- simulated.data %>%
   mutate(y.pred.3 = model.3.prediction(model.3.result$par, x))
@@ -112,7 +127,7 @@ simulated.data <- simulated.data %>%
 points(y.pred.3 ~ x, data=simulated.data, type="l", col="blue")
 
 
-model.7.result <- NA
+model.7.result <- optim(model.7.discrepancy, par=c(0,0,0,0,0,0,0,0), data=simulated.data, control = list(maxit=2000))
 
 simulated.data <- simulated.data %>%
   mutate(y.pred.7 = model.7.prediction(model.7.result$par, x))
@@ -124,37 +139,39 @@ points(y.pred.7 ~ x, data=simulated.data, type="l", col="green")
 
 # What's the deviance (-2lnL) for model 1 and model 3?
 
-
+model.1.deviance <- 2*model.1.result$value
+model.3.deviance <- 2*model.3.result$value
 
 # formula for LR test statistic is -2lnL(specific) - -2lnL(general)
 # specific = fewer parameters
 # general = more parameters
 
-test.statistic <- NA
+test.statistic <- model.1.deviance - model.3.deviance
 
 # then we estimate how unlikely it would be to observe a value equal
 # to or greater than this test statistic in a chi-sq distribution with
 # K degrees of freedom, where K = number of additional parameters
 # in the general model.
 
-K <- NA
+K <- 2
 1 - pchisq(test.statistic, K)
 
 # What's the deviance (-2lnL) for model 3 and model 7?
 
+model.7.deviance <- 2*model.7.result$value
 
 # formula for LR test statistic is -2lnL(specific) - -2lnL(general)
 # specific = fewer parameters
 # general = more parameters
 
-test.statistic <- NA
+test.statistic <- model.3.deviance - model.7.deviance
 
 # then we estimate how unlikely it would be to observe a value equal
 # to or greater than this test statistic in a chi-sq distribution with
 # K degrees of freedom, where K = number of additional parameters
 # in the general model.
 
-K <- NA
+K <- 4
 1 - pchisq(test.statistic, K)
 
 ## AIC / BIC #######
@@ -175,10 +192,18 @@ K <- NA
 
 # Calculate the AIC for all three models here:
 
+model.1.AIC <- model.1.deviance + 2*2
+model.3.AIC <- model.3.deviance + 2*4
+model.7.AIC <- model.7.deviance + 2*8
+
 
 # For AIC, a smaller AIC is preferable to a large AIC. 
 # Differences in AIC of >10 are thought to be relatively decisive.
 # Which model is preferred here?
+
+model.1.AIC
+model.3.AIC
+model.7.AIC
 
 
 # BIC
@@ -187,6 +212,14 @@ K <- NA
 # BIC <- k*ln(N) - 2ln(L)
 # where K is number of parameters in the model
 # and N is the number of samples being fit by the model
+
+model.1.BIC <- model.1.deviance + 2*log(nrow(Rsimulated.data))
+model.3.BIC <- model.3.deviance + 4*log(nrow(simulated.data))
+model.7.BIC <- model.7.deviance + 8*log(nrow(simulated.data))
+
+model.1.BIC
+model.3.BIC
+model.7.BIC
 
 # For BIC we also prefer smaller values, and difference >10 are thought
 # to be relatively decisive as well.

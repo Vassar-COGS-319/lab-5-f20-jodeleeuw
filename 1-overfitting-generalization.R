@@ -38,7 +38,7 @@ plot(y ~ x, data=simulated.data)
 simulated.data <- simulated.data %>%
   mutate(y.true = data.generating.process(x))
 
-points(y.true ~ x, data=data, col="red", type="l")
+points(y.true ~ x, data=simulated.data, col="red", type="l")
 
 # This fit looks pretty good, but that's because we're generating
 # the data from this exact model! 
@@ -53,15 +53,15 @@ points(y.true ~ x, data=data, col="red", type="l")
 # and 7-degree model.
 
 model.1.prediction <- function(params, x){
-  
+  return(params[1] + params[2]*x)
 }
 
 model.3.prediction <- function(params, x){
-  
+  return(params[1] + params[2]*x + params[3]*x^2 + params[4]*x^3)
 }
 
 model.7.prediction <- function(params, x){
-  
+  return(params[1] + params[3]*x + params[3]*x^2 + params[4]*x^3 + params[5]*x^4 + params[6]*x^5 + params[7]*x^6 + params[8]*x^7)
 }
   
 
@@ -74,15 +74,37 @@ model.7.prediction <- function(params, x){
 # Let's use RMSE for this example.
 
 model.1.discrepancy <- function(params, data){
+  rmse <- data %>%
+    mutate(y.pred = model.1.prediction(params, x)) %>%
+    mutate(sq.err = (y.pred - y)^2) %>%
+    pull(sq.err) %>%
+    mean() %>%
+    sqrt()
   
+  return(rmse)
 }
 
 model.3.discrepancy <- function(params, data){
+  rmse <- data %>%
+    mutate(y.pred = model.3.prediction(params, x)) %>%
+    mutate(sq.err = (y.pred - y)^2) %>%
+    pull(sq.err) %>%
+    mean() %>%
+    sqrt()
+  
+  return(rmse)
   
 }
 
 model.7.discrepancy <- function(params, data){
+  rmse <- data %>%
+    mutate(y.pred = model.7.prediction(params, x)) %>%
+    mutate(sq.err = (y.pred - y)^2) %>%
+    pull(sq.err) %>%
+    mean() %>%
+    sqrt()
   
+  return(rmse)
 }
 
 ## CREATING A HOLDOUT SET ##
@@ -106,7 +128,7 @@ points(y ~ x, data = train.data, col = "red")
 
 # fill in the code here to run the parameter search
 
-model.1.result <- NA
+model.1.result <- optim(model.1.discrepancy, par = c(0,0), data=train.data)
 
 simulated.data <- simulated.data %>%
   mutate(y.pred.1 = model.1.prediction(model.1.result$par, x))
@@ -114,8 +136,7 @@ simulated.data <- simulated.data %>%
 points(y.pred.1 ~ x, data=simulated.data, type="l", col="purple")
 
 
-
-model.3.result <- NA
+model.3.result <- optim(model.3.discrepancy, par=c(0,0,0,0), data=train.data, control=list(maxit=2000))
 
 simulated.data <- simulated.data %>%
   mutate(y.pred.3 = model.3.prediction(model.3.result$par, x))
@@ -124,7 +145,7 @@ points(y.pred.3 ~ x, data=simulated.data, type="l", col="blue")
 
 
 
-model.7.result <- NA
+model.7.result <-  optim(model.7.discrepancy, par=c(0,0,0,0,0,0,0,0), data=train.data, control=list(maxit=5000))
 
 simulated.data <- simulated.data %>%
   mutate(y.pred.7 = model.7.prediction(model.7.result$par, x))
