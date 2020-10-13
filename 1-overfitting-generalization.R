@@ -167,6 +167,8 @@ simulated.data %>%
 
 # which model has the lowest RMSE on the test data?
 
+# The 3rd degree model, which we happen to know is the "true" model in this particular case.
+
 # try changing the random.seed() at the top of the script and running it 
 # a few times. which model consistently has the lowest RMSE?
   
